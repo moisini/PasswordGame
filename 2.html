@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passcode Game</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      text-align: center;
+    }
+    .digit-selector {
+      display: inline-block;
+      margin: 0 5px;
+    }
+    .digit-wheel {
+      height: 60px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 40px;
+      background: #f9f9f9;
+    }
+    .digit-value {
+      font-size: 20px;
+      font-family: monospace;
+      height: 20px;
+    }
+    .digit-main {
+      color: red;
+      font-weight: bold;
+    }
+    .digit-correct {
+      color: green;
+      font-weight: bold;
+    }
+    .digit-diff {
+      font-size: 14px;
+      color: #555;
+      margin-top: 4px;
+    }
+    .history {
+      text-align: left;
+      margin-top: 1rem;
+      font-family: monospace;
+    }
+    .history-entry {
+      margin-bottom: 1.5em;
+    }
+    .history-row {
+      display: flex;
+      justify-content: space-between;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+    .history-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 50px;
+    }
+    .guess-num {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .diff-num {
+      font-size: 14px;
+      color: #666;
+      margin-top: 4px;
+    }
+    #restartBtn {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .help-button {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: #007bff;
+      color: white;
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .help-button:hover {
+      background-color: #0056b3;
+    }
+
+    .rules-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .rules-content {
+      background-color: white;
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      text-align: left;
+      font-family: Arial, sans-serif;
+      position: relative;
+    }
+
+    .rules-content h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .rules-content p {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+
+    .rules-content strong {
+      font-weight: bold;
+    }
+
+    .close-button {
+      background: none;
+      border: none;
+      font-size: 16px;
+      font-weight: bold;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: black;
+      cursor: pointer;
+    }
+    .close-button:hover {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Passcode Game - Level <span id="level">1</span></h1>
+  <p>Select the digits:</p>
+  <div id="selectors"></div>
+  <br />
+  <button id="guessBtn">Submit</button>
+  <p id="message"></p>
+  <button id="restartBtn">Restart</button>
+  <div class="history">
+    <h2>Guess History</h2>
+    <div id="history"></div>
+  </div>
+  <button id="helpBtn" class="help-button">?</button>
+  <div id="rulesPane" class="rules-overlay" style="display: none;">
+    <div class="rules-content">
+      <button id="closeRules" class="close-button">X</button>
+      <h2>How To Play</h2>
+      <p>Guess the Passcode in 4 tries.</p>
+      <p>After each guess, you will be given a <strong>hint</strong> to tell you how far away you are from the answer.</p>
+      <p>If the answer is 3 or more away, a 3+ will be shown instead.</p>
+      <p><strong>For example:</strong></p>
+      <p>If the passcode is:<span style="color:green"><strong> 1 2 3</strong></span></p>
+      <p>And you submit:<span style="color:green"><strong> 1 </strong></span><span style="color:red"><strong>3 6</strong></span></p>
+      <p>The hint will be:<strong> 0 1 3+</strong></p>
+      <p>This means you are,</p>
+      <p><span><strong> 0 </strong></span>numbers away in the 1st slot (it's correct),</p>
+      <p><span><strong>1</strong> </span> number away in the 2nd slot,</p>
+      <p><span><strong>3 </strong></span> or more numbers away in the 3rd slot.</p>
+      <p><strong>IMPORTANT:</strong> The hint can go in either direction.</p>
+      <p>For example:
+      <p>If the passcode is:<span style="color:green"><strong> 9 1 0</strong></span></p>
+      <p>And you submit:<span style="color: red"><strong> 1 8 9</strong></span></p>
+      <p>The hint will be: <strong>2 3+ 1</strong>.</p>
+      <p>Because 9 rolls over to 0 and then to 1 so you are 2 numbers away in the 1st slot</p>
+      </p>
+      <p>There are 9 levels, and levels 1-3 have 3 digits, 4-6 have 4 digits, and 7-9 have 5 digits.</p>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    let level = 1;
+    let code = [];
+    let guess = [];
+    let diffs = [];
+    let correctSlots = [];
+    let attempts = 4;
+    let history = [];
+    let allHistories = [];
+    let gameOver = false;
+    let timerId = null;
+
+    const helpButton = document.getElementById("helpBtn");
+    const rulesPane = document.getElementById("rulesPane");
+    const closeButton = document.getElementById("closeRules");
+
+    helpButton?.addEventListener("click", () => { rulesPane.style.display = "flex" });
+    closeButton?.addEventListener("click", () => { rulesPane.style.display = "none" });
+    window.addEventListener("click", (event) => { if (event.target === rulesPane) rulesPane.style.display = "none" });
+
+    function getCodeLength(level) {
+      if (level <= 3) return 3;
+      if (level <= 6) return 4;
+      return 5;
+    }
+
+    function generateCode(length) {
+      return Array.from({ length }, () => Math.floor(Math.random() * 10));
+    }
+
+    function resetGame() {
+      clearTimeout(timerId);
+      level = 1;
+      allHistories = [];
+      initializeLevel(getCodeLength(level));
+      document.getElementById("message").textContent = "";
+      document.getElementById("restartBtn").style.display = "none";
+      document.getElementById("guessBtn").disabled = false;
+      gameOver = false;
+    }
+
+    function initializeLevel(codeLength) {
+      code = generateCode(codeLength);
+      guess = Array(codeLength).fill(0);
+      diffs = Array(codeLength).fill("-");
+      correctSlots = Array(codeLength).fill(false);
+      attempts = 4;
+      history = [];
+      updateUI();
+    }
+
+    function createDigitSelector(index, digit) {
+      const container = document.createElement("div");
+      container.className = "digit-selector";
+
+      const up = document.createElement("button");
+      up.textContent = "▲";
+      up.disabled = correctSlots[index];
+      up.onclick = () => updateDigit(index, 1);
+
+      const wheel = document.createElement("div");
+      wheel.className = "digit-wheel";
+
+      const above = document.createElement("div");
+      above.className = "digit-value";
+      above.textContent = (digit + 1) % 10;
+
+      const val = document.createElement("div");
+      val.className = "digit-value " + (correctSlots[index] ? "digit-correct" : "digit-main");
+      val.textContent = digit;
+
+      const below = document.createElement("div");
+      below.className = "digit-value";
+      below.textContent = (digit - 1 + 10) % 10;
+
+      wheel.appendChild(above);
+      wheel.appendChild(val);
+      wheel.appendChild(below);
+
+      const down = document.createElement("button");
+      down.textContent = "▼";
+      down.disabled = correctSlots[index];
+      down.onclick = () => updateDigit(index, -1);
+
+      const diffLabel = document.createElement("div");
+      diffLabel.className = "digit-diff";
+      diffLabel.textContent = diffs[index] !== undefined ? diffs[index] : "-";
+
+      container.appendChild(up);
+      container.appendChild(wheel);
+      container.appendChild(down);
+      container.appendChild(diffLabel);
+
+      return container;
+    }
+
+    function updateUI() {
+      document.getElementById("level").textContent = level;
+      const selectors = document.getElementById("selectors");
+      selectors.innerHTML = "";
+      guess.forEach((digit, index) => {
+        const selector = createDigitSelector(index, digit);
+        selectors.appendChild(selector);
+      });
+
+      const historyElement = document.getElementById("history");
+      historyElement.innerHTML = history.map(entry => {
+        const columns = entry.diffs.map((diff, i) => `
+          <div class="history-column">
+            <div class="guess-num">${entry.guess[i]}</div>
+            <div class="diff-num">${diff}</div>
+          </div>
+        `).join("");
+        return `<div class="history-entry"><div class="history-row">${columns}</div></div>`;
+      }).join("");
+    }
+
+    function updateDigit(index, direction) {
+      if (!gameOver && !correctSlots[index]) {
+        guess[index] = (guess[index] + direction + 10) % 10;
+        updateUI();
+      }
+    }
+
+    function handleGuess() {
+      if (gameOver) return;
+
+      let allCorrect = true;
+      diffs = [];
+
+      for (let i = 0; i < code.length; i++) {
+        const g = guess[i];
+        const c = code[i];
+        const rawDiff = Math.abs(g - c);
+        const diff = Math.min(rawDiff, 10 - rawDiff);
+        if (diff > 0) {
+          allCorrect = false;
+          diffs.push(diff >= 3 ? "3+" : diff.toString());
+        } else {
+          diffs.push("0");
+          correctSlots[i] = true;
+        }
+      }
+
+      history.push({ guess: [...guess], diffs: [...diffs] });
+      updateUI();
+
+      if (allCorrect) {
+        if (level >= 9) {
+          document.getElementById("message").textContent = "Congratulations! You've beaten all levels!";
+          document.getElementById("restartBtn").style.display = "inline-block";
+          document.getElementById("guessBtn").disabled = true;
+          gameOver = true;
+        } else {
+          document.getElementById("message").textContent = "Correct! Moving to the next level...";
+          timerId = setTimeout(nextLevel, 1500);
+        }
+      } else {
+        attempts--;
+        if (attempts <= 0) {
+          document.getElementById("message").textContent = "Game over!";
+          document.getElementById("restartBtn").style.display = "inline-block";
+          document.getElementById("guessBtn").disabled = true;
+          gameOver = true;
+        } else {
+          document.getElementById("message").textContent = `Incorrect. ${attempts} attempts left.`;
+        }
+      }
+    }
+
+    function nextLevel() {
+      allHistories.push([...history]);
+      level++;
+      initializeLevel(getCodeLength(level));
+      document.getElementById("message").textContent = "";
+    }
+
+    document.getElementById("guessBtn").addEventListener("click", handleGuess);
+    document.getElementById("restartBtn").addEventListener("click", resetGame);
+
+    resetGame();
+  })();
+  </script>
+</body>
+</html>
